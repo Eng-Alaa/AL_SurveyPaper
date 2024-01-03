@@ -4,7 +4,6 @@ from sklearn.datasets import load_iris
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.utils import shuffle
-import matplotlib.patches as mpatches
 
 def calculate_uncertainty_LeastConfident(X, model):
     # Get predicted probabilities for each class
