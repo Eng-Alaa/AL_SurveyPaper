@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.datasets import load_iris
-#from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.utils import shuffle
@@ -36,7 +35,7 @@ def select_uncertain_samples_LC(X, model, n_samples=1):
     uncertainty_scores=calculate_uncertainty_LeastConfident(X, model)   
     # Select the indices of the most uncertain samples
     uncertain_indices = np.argsort(uncertainty_scores)[-n_samples:]    
-    return uncertain_indices
+    return uncertain_indices,uncertainty_scores
 
 def select_uncertain_samples_SM(X, model, n_samples=1):
     uncertainty_scores=calculate_uncertainty_SmallestMargin(X, model)   
@@ -44,30 +43,25 @@ def select_uncertain_samples_SM(X, model, n_samples=1):
     #uncertain_indices = np.argsort(uncertainty_scores)[:n_samples]    
     uncertain_indices = np.argsort(uncertainty_scores)[::-1][-n_samples:]
     #np.where(uncertainty_scores == np.min(uncertainty_scores))    
-    return uncertain_indices
+    return uncertain_indices ,uncertainty_scores
 
 def select_uncertain_samples_Entropy(X, model, n_samples=1):
     uncertainty_scores=calculate_uncertainty_Entropy(X, model_Entropy)   
     # Select the indices of the most uncertain samples
     uncertain_indices = np.argsort(uncertainty_scores)[-n_samples:]    
-    np.where(uncertainty_scores == np.max(uncertainty_scores)) 
-    return uncertain_indices
+    np.where(uncertainty_scores == np.max(uncertainty_scores))    
+    return uncertain_indices,uncertainty_scores
 
 # Load the Iris dataset
 iris = load_iris()
 X, y = iris.data[:, :2], iris.target
-
-# Filter the dataset for two classes (class 0 and class 1)
-class_indices = np.where((y == 0) | (y == 1))[0]
-X = X[class_indices]
-y = y[class_indices]
 X, y = shuffle(X, y, random_state=42)
 
 model_Entropy = LogisticRegression()
 model_LC = LogisticRegression()
 model_SM = LogisticRegression()
 # Select initial labeled samples randomly
-labeled_indices = np.random.choice(X.shape[0], size=5, replace=False) # initial five labeled points
+labeled_indices = np.random.choice(X.shape[0], size=5, replace=False)
 unlabeled_indices = np.setdiff1d(np.arange(X.shape[0]), labeled_indices)
 
 labeled_indices_Entropy=labeled_indices
@@ -86,11 +80,12 @@ for iteration in range(n_iterations):
     model_Entropy.fit(X[labeled_indices_Entropy], y[labeled_indices_Entropy])
     model_LC.fit(X[labeled_indices_LC], y[labeled_indices_LC])
     model_SM.fit(X[labeled_indices_SM], y[labeled_indices_SM])    
+
     # Select uncertain samples from the unlabeled data
-    uncertain_indices_Entropy = select_uncertain_samples_Entropy(X[unlabeled_indices_Entropy], model_Entropy, n_samples_per_iteration)
-    uncertain_indices_LC = select_uncertain_samples_LC(X[unlabeled_indices_LC], model_LC, n_samples_per_iteration)
-    uncertain_indices_SM = select_uncertain_samples_SM(X[unlabeled_indices_SM], model_SM, n_samples_per_iteration)
-    
+    uncertain_indices_Entropy,temp = select_uncertain_samples_Entropy(X[unlabeled_indices_Entropy], model_Entropy, n_samples_per_iteration)
+    uncertain_indices_LC, temp = select_uncertain_samples_LC(X[unlabeled_indices_LC], model_LC, n_samples_per_iteration)
+    uncertain_indices_SM, temp = select_uncertain_samples_SM(X[unlabeled_indices_SM], model_SM, n_samples_per_iteration)
+  
     # Query labels for the uncertain samples
     queried_indices_Entropy = unlabeled_indices_Entropy[uncertain_indices_Entropy]
     queried_indices_LC = unlabeled_indices_LC[uncertain_indices_LC]
@@ -108,7 +103,7 @@ for iteration in range(n_iterations):
     unlabeled_indices_Entropy = np.setdiff1d(unlabeled_indices_Entropy, queried_indices_Entropy)
     unlabeled_indices_LC = np.setdiff1d(unlabeled_indices_LC, queried_indices_LC)
     unlabeled_indices_SM = np.setdiff1d(unlabeled_indices_SM, queried_indices_SM)
-        
+    
     # plot the uncertainty
     h = 0.02  # Step size in the mesh
     x_min, x_max = X[:, 0].min() - 0.5, X[:, 0].max() + 0.5
@@ -120,7 +115,7 @@ for iteration in range(n_iterations):
     uncertainties_1 = calculate_uncertainty_Entropy(xy_pairs, model_Entropy)
     uncertainties_2 = calculate_uncertainty_LeastConfident(xy_pairs, model_LC)
     uncertainties_3 = calculate_uncertainty_SmallestMargin(xy_pairs, model_SM)
-    
+ 
     # Reshape uncertainties to match the shape of the meshgrid
     uncertainties_1 = uncertainties_1.reshape(xx.shape)
     uncertainties_2 = uncertainties_2.reshape(xx.shape)
@@ -133,6 +128,7 @@ for iteration in range(n_iterations):
     # Plot the contour plots of uncertainties
     im1 = axs[0].scatter(X[unlabeled_indices_Entropy[Temp==0], 0], X[unlabeled_indices_Entropy[Temp==0], 1], c='#A52A2A',cmap='viridis', label='Unlabeled Point (class 0)')
     im1 = axs[0].scatter(X[unlabeled_indices_Entropy[Temp==1], 0], X[unlabeled_indices_Entropy[Temp==1], 1], c='green', cmap='viridis', label='Unlabeled Point (class 1)')
+    im1 = axs[0].scatter(X[unlabeled_indices_Entropy[Temp==2], 0], X[unlabeled_indices_Entropy[Temp==2], 1], c='#FF2A2A', cmap='viridis', label='Unlabeled Point (class 2)')
     axs[0].scatter(X[labeled_indices_Entropy, 0], X[labeled_indices_Entropy, 1], marker='+', c='red', cmap='viridis', label='Labeled Point', s=120)
     axs[0].scatter(X[queried_indices_Entropy[-1], 0], X[queried_indices_Entropy[-1], 1], marker='+', c='blue', label='New Queried Point', s=120)
     contour1 = axs[0].contourf(xx, yy, uncertainties_1, alpha=0.4, cmap='viridis')
@@ -143,6 +139,7 @@ for iteration in range(n_iterations):
     Temp=y[unlabeled_indices_LC]
     im2 = axs[1].scatter(X[unlabeled_indices_LC[Temp==0], 0], X[unlabeled_indices_LC[Temp==0], 1], c='#A52A2A', cmap='viridis')
     im2 = axs[1].scatter(X[unlabeled_indices_LC[Temp==1], 0], X[unlabeled_indices_LC[Temp==1], 1], c='green', cmap='viridis')
+    im2 = axs[1].scatter(X[unlabeled_indices_LC[Temp==2], 0], X[unlabeled_indices_LC[Temp==2], 1], c='#FF2A2A', cmap='viridis')
     axs[1].scatter(X[labeled_indices_LC, 0], X[labeled_indices_LC, 1], marker='+', c='red', cmap='viridis', s=120)
     axs[1].scatter(X[queried_indices_LC[-1], 0], X[queried_indices_LC[-1], 1], marker='+', c='blue', s=120)
     contour2 = axs[1].contourf(xx, yy, uncertainties_2, alpha=0.4, cmap='viridis')
@@ -153,6 +150,7 @@ for iteration in range(n_iterations):
     Temp=y[unlabeled_indices_SM]
     im3 = axs[2].scatter(X[unlabeled_indices_SM[Temp==0], 0], X[unlabeled_indices_SM[Temp==0], 1], c='#A52A2A')
     im3 = axs[2].scatter(X[unlabeled_indices_SM[Temp==1], 0], X[unlabeled_indices_SM[Temp==1], 1], c='green')
+    im3 = axs[2].scatter(X[unlabeled_indices_SM[Temp==2], 0], X[unlabeled_indices_SM[Temp==2], 1], c='#FF2A2A')
     axs[2].scatter(X[labeled_indices_SM, 0], X[labeled_indices_SM, 1], marker='+', c='red', cmap='viridis', s=120)
     axs[2].scatter(X[queried_indices_SM[-1], 0], X[queried_indices_SM[-1], 1], marker='+', c='blue', s=120)
     contour3 = axs[2].contourf(xx, yy, uncertainties_3, alpha=0.4, cmap='viridis')
@@ -163,7 +161,7 @@ for iteration in range(n_iterations):
     # Create a common colorbar for all subplots
     cbar_ax = fig.add_axes([0.96, 0.15, 0.02, 0.7])  # Position of the colorbar
     fig.colorbar(contour1, cax=cbar_ax, label='Uncertainty')
-    fig.legend(loc='upper center', ncol=4)
+    fig.legend(loc='upper center', ncol=5)
     plt.tight_layout(pad=4)  # Adjusted padding value
     plt.show()
 
@@ -191,4 +189,3 @@ for i, prediction in enumerate(predictions_LC):
 print("Predictions on test data: SM")
 for i, prediction in enumerate(predictions_SM):
     print(f"Sample {i+1}: Predicted class - {prediction}")
-
