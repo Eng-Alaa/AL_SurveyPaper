@@ -4,5 +4,9 @@ ALUncertaintyBehaviourANalysis_Multiple: This file shows the contour plots of th
 
 ClassProbabilitiesExampleDetails: This is an example to show how the classifier produces not only class labels, but als class probabilities
 
-Uncertainty_Evidence_Binayr: This explains how the evidence-based uncertainty is calculated. In the papers, the evidence-based always select from S (selected set of points). In this file we used the original evidence-based method that selects from the best five points and also select from the whole pool and show the difference.
+Uncertainty_Evidence_Binary: This explains how the evidence-based uncertainty is calculated. In the papers, the evidence-based always select from S (selected set of points). In this file we used the original evidence-based method that selects from the best five points and also select from the whole pool and show the difference.
 
+
+Uncertainty_Evidence_Numerical: This explains how the evidence-based uncertainty is calculated using a toy dataset.
+
+CredalUncertainty_AL: This shows how the Credal-based uncertainty is calculated and employed to find uncertian points to query points in active learning
